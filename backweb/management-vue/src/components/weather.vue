@@ -116,11 +116,22 @@
             </a-list>
           </a-modal>
         </a-col>
+        <a-col>
+          <v-chart
+            style="
+              width: 300px;
+              height: 200px;
+              margin-bottom: -200px;
+            "
+            :option="wquality_option"
+            autoresize
+          ></v-chart>
+        </a-col>
       </a-row>
       <a-row style="margin-top: 20px">
         <div style="font-weight: 400">每小时气温预报</div>
-          <!-- 折线图表 -->
-            <v-chart class="charts" :option="option" autoresize/>
+        <!-- 折线图表 -->
+        <v-chart class="charts" :option="option" autoresize />
       </a-row>
     </div>
   </div>
@@ -134,12 +145,19 @@ import { use } from "echarts/core";
 import { LineChart } from "echarts/charts";
 import { GridComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-import { UniversalTransition } from 'echarts/features';
-import VChart from "vue-echarts";  //按需引入 
+import { UniversalTransition } from "echarts/features";
+import { GaugeChart } from "echarts/charts";
+import VChart from "vue-echarts"; //按需引入
 
 // import * as echarts from 'echarts/core';
 // import ECharts from 'vue-echarts';
-use([GridComponent, LineChart, CanvasRenderer, UniversalTransition]);
+use([
+  GridComponent,
+  LineChart,
+  CanvasRenderer,
+  UniversalTransition,
+  GaugeChart,
+]);
 
 // const city_options = ref([{ city: "1" }, { city: "2" }]);  //模糊搜索数据占位符
 const qweather_city = ref("广州");
@@ -151,6 +169,7 @@ const _indices_visible = ref(false);
 const weather_indices_list = ref([]);
 const hr_weather_hour = ref([]);
 const hr_weather_temp = ref([]);
+const qweather_quality = ref(0);
 
 const option = ref({
   xAxis: {
@@ -168,12 +187,100 @@ const option = ref({
   ],
 });
 
+const wquality_option = ref({
+  series: [
+    {
+      type: "gauge",
+      startAngle: 180,
+      endAngle: 0,
+      center: ["50%", "50%"],
+      radius: "90%",
+      min: 500,
+      max: 0,
+      splitNumber: 8,
+      axisLine: {
+        lineStyle: {
+          width: 3,
+          color: [
+            [0.0998, "rgb(126,0,35)"], // 1 1 1 2 4 
+            [0.4998, "rgb(153,100,76)"],
+            [0.6998, "rgb(255,0,0)"],
+            [0.7998, "rgb(255,126,0)"],
+            [0.8998, "rgb(255,255,0)"],
+            [1, "rgb(0,228,0)"],
+          ],
+        },
+      },
+      pointer: {
+        icon: "path://M12.8,0.7l12,40.1H0.7L12.8,0.7z",
+        length: "10%",
+        width: 10,
+        offsetCenter: [0, "-60%"],
+        itemStyle: {
+          color: "auto",
+        },
+      },
+      axisTick: {
+        length: 6,
+        lineStyle: {
+          color: "auto",
+          width: 2,
+        },
+      },
+      splitLine: {
+        length: 10,
+        lineStyle: {
+          color: "auto",
+          width: 2,
+        },
+      },
+      axisLabel: {
+        color: "#464646",
+        fontSize: 6,
+        distance: -35,
+        rotate: "tangential",
+        formatter: function (value) {
+          if (value === 25) {
+            return "优";
+          } else if (value === 75) {
+            return "良";
+          } else if (value === 150) {
+            return "轻度污染";
+          } else if (value === 175) {
+            return "中度污染";
+          } else if (value === 250) {
+            return "重度污染";
+          } else if (value === 400) {
+            return "严重污染";
+          }
+          return "";
+        },
+      },
+      title: {
+        offsetCenter: [0, "0%"],
+        fontSize: 12,
+      },
+      detail: {
+        fontSize: 30,
+        offsetCenter: [0, "-35%"],
+        valueAnimation: true,
+        color: "inherit",
+      },
+      data: [
+        {
+          value: 0,
+          name: "空气质量指数",
+        },
+      ],
+    },
+  ],
+});
+
 onBeforeMount(() => {
   if (sessionStorage.getItem("weatherData") != null) {
     current_weather.value = JSON.parse(sessionStorage.getItem("weatherData"));
   }
   weather_icon.value = `qi-${current_weather.icon}-fill`;
-
   qweather();
 });
 
@@ -223,6 +330,7 @@ const qweather = async () => {
   } finally {
     searchIndice();
     hourWeatherForecast();
+    searchQuality();
   }
 };
 
@@ -250,32 +358,46 @@ const searchIndice = async () => {
   if (res.code == 200) {
     weather_indices_list.value = res.daily;
   }
+};
+
+const searchQuality = async () => {
+  const res = (await axios.request({
+    url: 'https://devapi.qweather.com/v7/air/now',
+    params: {
+      key: "3adde512afae42b4b19f4076404e8e18",
+      location: current_location.value,
+    }
+  })).data;
+  if (res.code == 200) {
+    qweather_quality.value = res.now.aqi;
+  }
 }
 
 const hourWeatherForecast = async () => {
-  hr_weather_hour.value = [''];
-  hr_weather_temp.value = [''];
-  const res = (await axios.request({
-    url: 'https://devapi.qweather.com/v7/weather/24h',
-    params: {
-      location: current_location.value,
-      key: '3adde512afae42b4b19f4076404e8e18',
-    }
-  })).data;
+  hr_weather_hour.value = [""];
+  hr_weather_temp.value = [""];
+  const res = (
+    await axios.request({
+      url: "https://devapi.qweather.com/v7/weather/24h",
+      params: {
+        location: current_location.value,
+        key: "3adde512afae42b4b19f4076404e8e18",
+      },
+    })
+  ).data;
   if (res.code != 200) return;
-  for (let i = 0; i < 24; i++){
-    hr_weather_hour.value.push((res.hourly[i].fxTime).slice(11, 16));
+  for (let i = 0; i < 24; i++) {
+    hr_weather_hour.value.push(res.hourly[i].fxTime.slice(11, 16));
     hr_weather_temp.value.push(res.hourly[i].temp);
   }
   option.value.xAxis.data = hr_weather_hour.value;
   // console.log('series', option.value.series[0].data);
   option.value.series[0].data = hr_weather_temp.value;
-}
+};
 
 // const searchCity = async () => {
 //   console.log("模糊搜索", qweather_city.value);
 // };
-
 </script>
 
 <style scoped>
@@ -291,4 +413,7 @@ const hourWeatherForecast = async () => {
 .charts {
   height: 400px;
 }
+/*  如果容器是隐藏的，ECharts 可能会获取不到 DIV 的高宽导致初始化失败，
+这时候可以明确指定 DIV 的style.width和style.height，
+或者在div显示后手动调用 resize 调整尺寸。 */
 </style>

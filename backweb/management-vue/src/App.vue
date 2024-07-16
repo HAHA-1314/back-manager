@@ -10,31 +10,32 @@ import { onMounted } from "vue";
 const vuexisLogin = useStore();
 
 router.beforeEach(async (to, from) => {
-  if (to.meta.requiresAuth) {
+  if (to.meta.requiresAuth) { //如果页面meta requiresAuth 为真
     //路径导航守卫
-    console.log("requiresAuth");
+    // console.log("requiresAuth");
     if (
-      vuexisLogin.state.rule == "admin" &&
+      vuexisLogin.state.rule == "admin" &&  //vuex保存的默认state为islogin: false,rule: null,username: null,
       (to.fullPath == "/content/admin" ||
         to.fullPath == "/content/admin/system-info" ||
         to.fullPath == "/content/admin/todoList" ||
       to.fullPath == "/content/admin/qweather")
     ) {
-      console.log(vuexisLogin.state);
+      // console.log(vuexisLogin.state);
     } else if (
       vuexisLogin.state.rule == "user" &&
       (to.fullPath == `/content/${vuexisLogin.state.username}` ||
         to.fullPath == `/content/${vuexisLogin.state.username}/todolist` ||
         to.fullPath == `/content/${vuexisLogin.state.username}/qweather`)
     ) {
-      console.log(vuexisLogin.state);
+      // console.log(vuexisLogin.state);
     } else {
-      console.log("Not Auth");
-      console.log(to);
-      console.log(from);
+      // console.log("Not Auth");
+      // console.log(to);
+      // console.log(from);
       router.push("/404");
     }
   }
+  // 以下 token 自动登录
   if (localStorage.getItem("token") != null && to.fullPath == '/login') {
     const islogin = (
       await axios.request({
